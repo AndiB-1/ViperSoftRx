@@ -24,23 +24,31 @@
 #
 #############################################################################################################################
 
-# import the streams module for USB serial port.
-import streams
-
-# open the default serial port
-streams.serial()
+#########
+#
+# this code is waiting for an 8bit number flanked by a 2bit start and stop signal (each a [1,0] tuple)
+# so it's looking for this kind of signal:
+# __                           __
+#   |__--|--|--|--|--|--|--|--|  |__
+#
+# start| 8 bit binary         |stop
+#
+# as far as I'm aware the arduino SoftSerial library only sends a LOW start bit and a HIGH stop bit. 
+# The start bit would be OK for this code (it's looking for a falling edge to start capture), but it doesn't cope well with just a HIGH stop bit.
+#########
 
 #import necessary libraries
-import timers
-import pwm #needed to enable hwtimers to run (?)
-import hwtimers
 import icu
+
+global RxBuffer
+global RxBufferTMP
 
 #############################################################################################################################
 
-########################
+############
+#########
 # functions
-########################
+#########
 
 #########
 # convert RxBuffer to decimal
@@ -78,9 +86,7 @@ def round(_x):
 # The start bit would be OK for this code (it's looking for a falling edge to start capture), but it doesn't cope well with just a HIGH stop bit.
 #########
 
-def receive1byteICU(_receivepin,_baudrate):
-
-    global RxBuffer
+def Rx_1byte_ICU(_receivepin,_baudrate):
 
     duration1bitMICROS = int(round((1/_baudrate)*(10**6))) # 1s = 10^6 microseconds, rounded to next integer
 
@@ -102,20 +108,8 @@ def receive1byteICU(_receivepin,_baudrate):
         for i in range(8-len(BinListICU)):
             BinListICU.append(0)
 
-    RxBuffer.append(SoftRx_Bin2Dec(BinListICU)) # add received decimal to buffer
-
-    return RxBuffer # hand the buffer back to the thread/main program
-
-
-#########
-# start up serial port using InputCaptureUnit
-#########
-def SoftRx_startICU(_rxpin,_baudrate):
-    global RxBuffer # any thread/program that wants to modify (!) the buffer needs to declare it global
-    RxBuffer = []
-
-    while True:
-        receive1byteICU(_rxpin,_baudrate) # now we're receiving decimal serial data
+    Buffer = SoftRx_Bin2Dec(BinListICU)
+    return Buffer    # hand the buffer back to the thread/main program
 
 
 #############################################################################################################################
